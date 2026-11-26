@@ -113,6 +113,32 @@
  victoire    ouverture de #ecran-fin
  Vibration (Android seulement, iOS l'ignore) : Trouvé 30 ms ; Passer 15-40-15 ;
  Annuler 60 ms. C'est le retour « sans regarder » du pouce.
+
+ ---------------------------------------------------------------------------------
+ MODE « UN SEUL TÉLÉPHONE » (Léa, 26/11/2026) : une option, jamais le défaut
+ ---------------------------------------------------------------------------------
+ L'accueil s'ouvre TOUJOURS sur « Plusieurs téléphones » (aucune mémorisation du choix).
+ body.un-telephone           posée quand on choisit « Un seul téléphone » à l'accueil,
+                             retirée quand on revient à « Plusieurs » ou qu'on quitte.
+   .multi-seulement          masqué en mode un seul téléphone
+   .local-seulement          masqué en mode plusieurs téléphones
+ Parcours : accueil → U1 #ecran-local-equipes → #ecran-manche.est-hote (existant)
+            → [U2 #ecran-local-passe → #ecran-pret.role-parleur (existant)
+               → #ecran-tour-parleur (existant, inchangé) → #ecran-fin-tour.est-hote]
+            × chaque tour → #ecran-score.est-hote → … → #ecran-fin.est-hote.
+ En mode un seul téléphone, le moteur pose TOUJOURS .est-hote (manche, fin de tour,
+ score, fin) et .role-parleur (« On y va ? ») ; #ecran-tour-equipe et
+ #ecran-tour-adverse ne s'affichent jamais.
+ Classes d'état du mode :
+ #local-equipes .equipe-locale (e1 à e4, --e)   une carte par équipe ; .pas du nombre
+                             de joueurs (2 à 8), un champ de prénom FACULTATIF par joueur
+ #btn-local-lancer[disabled] + #raison-local     plus de 16 joueurs en tout
+ #ecran-local-passe.sans-prenom   aucun prénom saisi pour ce joueur : « quelqu'un de
+                             l'Équipe 2 » à la place du prénom et de la pastille
+ ⛔ SECRET sur un seul appareil : U2 n'affiche AUCUNE carte. La carte n'apparaît qu'au
+ « Go » de #ecran-pret, quand le téléphone est déjà dans la main de qui fait deviner.
+ Sons en mode un seul téléphone : tous jouent sur cet appareil (go, trouve, passer,
+ tic, fin-temps, score, manche, victoire) ; entree : jamais.
 =====================================================================================
 -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -327,7 +353,7 @@ body::before{
   background:var(--carte);color:var(--encre);font:700 1.125rem/1 var(--police);
   box-shadow:inset 0 3px 0 rgba(22,19,49,.12),0 4px 0 var(--carte-levre);
 }
-.saisie::placeholder{color:#76718F;font-weight:600}
+.saisie::placeholder{color:#67627F;font-weight:600} /* 5,3:1 sur la carte (l'ancien #76718F faisait 4,26) : « Prénom (facultatif) » porte une information */
 .saisie:focus{outline:none;border-color:var(--action)}
 .saisie-code{min-height:84px;text-align:center;text-transform:uppercase;font:800 2.75rem/1 var(--police-titre);letter-spacing:.42em;padding-left:.42em}
 .saisie.refusee{border-color:var(--urgence)}
@@ -452,6 +478,15 @@ body::before{
 #ecran-manche.manche-1 .picto-1,#ecran-manche.manche-2 .picto-2,#ecran-manche.manche-3 .picto-3{display:inline-flex}
 .picto{align-items:center;gap:6px;justify-content:center;font:700 .9375rem/1 var(--police);color:var(--action)}
 .picto svg{width:22px;height:22px}
+/* 26/11 : l'annonce de manche défilait de 66 px à 375 × 812 (878 px), « Commencer la manche » sous le pli.
+   Tampon et écarts resserrés sur écran de hauteur moyenne : 812 px mesurés dans le jeu construit. */
+@media (max-height:900px){
+  #ecran-manche{gap:12px;padding-block:14px 20px}
+  #ecran-manche .tampon{width:104px;height:104px}
+  #ecran-manche .tampon .numero{font-size:3.5rem}
+  #ecran-manche .regle-manche{margin-top:4px}
+  #ecran-manche .bas{gap:8px}
+}
 
 /* ---------- 5. On y va ? ---------- */
 #ecran-pret{text-align:center}
@@ -698,6 +733,51 @@ body > .bandeau{
 }
 body > .bandeau.visible{pointer-events:auto}
 
+/* ---------- Mode « un seul téléphone » ---------- */
+body:not(.un-telephone) .local-seulement{display:none!important}
+body.un-telephone .multi-seulement{display:none!important}
+/* Accueil : deux grandes pièces, l'icône doublée du mot */
+.choix-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:5px;border-radius:20px;background:var(--panneau-levre)}
+.choix-mode label{position:relative;min-width:0}
+.choix-mode input{position:absolute;inset:0;opacity:0;margin:0;cursor:pointer;z-index:1}
+.choix-mode span{display:flex;align-items:center;justify-content:center;gap:8px;min-height:54px;padding:6px 8px;border-radius:15px;text-align:left;font:700 .9375rem/1.15 var(--police);color:var(--texte-doux)}
+.choix-mode svg{width:24px;height:24px;flex:none}
+.choix-mode input:checked + span{background:var(--carte);color:var(--encre);box-shadow:0 3px 0 var(--carte-levre)}
+.choix-mode input:focus-visible + span{outline:3px solid var(--focus);outline-offset:2px}
+@media (max-height:860px){#ecran-accueil .cadre-photo{width:min(100%,290px)}}
+/* Arrêter une partie locale (26/11) : un lien discret, puis une confirmation dessinée dans l'écran
+   (confirm() ne s'affiche pas). .ecran.arret-demande montre la confirmation et masque .masque-si-arret. */
+.confirmer-arret{display:none;gap:12px;padding:14px 16px;border-radius:var(--rayon-m);background:var(--panneau);border:2px solid var(--alerte)}
+.ecran.arret-demande .confirmer-arret{display:grid}
+.ecran.arret-demande .masque-si-arret{display:none}
+.confirmer-arret p{margin:0;color:var(--texte-doux)}
+.confirmer-arret strong{display:block;color:var(--texte);font:800 1.125rem/1.2 var(--police-titre)}
+.deux-boutons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.passe .vers{text-wrap:balance}
+.titre-mode{display:inline-flex;align-items:center;gap:6px}
+.titre-mode svg{width:20px;height:20px;color:var(--action)}
+/* Équipes sur un seul téléphone : une carte par équipe, prénoms facultatifs */
+.equipes-locales{display:grid;gap:12px}
+.equipe-locale{--e:var(--e1);min-width:0;border-radius:18px;background:var(--panneau-clair);overflow:hidden;box-shadow:0 4px 0 var(--panneau-levre)}
+.equipe-locale .corps{display:grid;gap:8px;padding:8px 12px 12px}
+.ligne-nb{display:flex;align-items:center;gap:12px;min-height:52px}
+.ligne-nb .lib-reglage{flex:1;min-width:0}
+.liste-saisie{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.liste-saisie .saisie{min-height:48px;padding:0 14px;font-size:1rem}
+.raison{margin:0;text-align:center;font-size:.9375rem;font-weight:700;color:var(--alerte)}
+/* Passez le téléphone : aucune carte, rien qu'un prénom */
+#ecran-local-passe{text-align:center}
+.passe{flex:1;display:grid;align-content:center;justify-items:center;gap:14px}
+.passe .vers{margin:0;font:800 1.25rem/1.2 var(--police-titre);color:var(--texte-doux)}
+.prenom-geant{margin:0;max-width:100%;font:800 clamp(2.5rem,13vw,3.5rem)/1 var(--police-titre);letter-spacing:-.03em;overflow-wrap:anywhere}
+#ecran-local-passe .t-sans-prenom{display:none}
+#ecran-local-passe.sans-prenom .t-sans-prenom{display:block}
+#ecran-local-passe.sans-prenom .t-avec-prenom{display:none}
+.consigne-secret{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:var(--rayon-m);background:var(--panneau);border:2px dashed var(--filet);text-align:left}
+.consigne-secret svg{width:30px;height:30px;flex:none;color:var(--action)}
+.consigne-secret p{margin:0;color:var(--texte-doux)}
+.consigne-secret strong{display:block;color:var(--texte);font:800 1.0625rem/1.2 var(--police-titre)}
+
 /* ---------- Animations ---------- */
 @keyframes a-apparait{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes a-empile{0%{opacity:0;transform:translateY(-40px) rotate(-8deg)}100%{opacity:1;transform:none}}
@@ -752,6 +832,8 @@ body > .bandeau.visible{pointer-events:auto}
     <symbol id="i-groupe" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><circle cx="17" cy="9" r="2.5"/><path d="M17 14a5 5 0 0 1 4.5 5"/></g></symbol>
     <symbol id="i-wifi" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M2 8.5a15 15 0 0 1 20 0M5.5 12a10 10 0 0 1 13 0M9 15.5a5 5 0 0 1 6 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/><path d="M3 3l18 18"/></g></symbol>
     <symbol id="i-recharge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></g></symbol>
+    <symbol id="i-tel" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M11 18h2"/></g></symbol>
+    <symbol id="i-tels" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5" width="8" height="15" rx="2"/><rect x="13.5" y="3" width="8" height="15" rx="2"/><path d="M5.8 17h1.4M16.8 15h1.4"/></g></symbol>
     <symbol id="i-couronne" viewBox="0 0 24 24"><path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5Z" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></symbol>
   </defs>
 </svg>
@@ -772,10 +854,16 @@ body > .bandeau.visible{pointer-events:auto}
     <p class="accroche">Faites deviner les personnages et les récits de la Bible à votre équipe, avant que le sablier ne tombe.</p>
   </div>
   <div class="bas">
-    <button class="btn btn-action" id="btn-creer" type="button">Créer une partie</button>
-    <button class="btn btn-carte" id="btn-rejoindre" type="button">Rejoindre</button>
+    <div class="choix-mode" id="choix-mode" role="radiogroup" aria-label="Comment jouez-vous ?">
+      <label><input type="radio" name="mode-jeu" value="plusieurs" id="mode-plusieurs" checked><span><svg aria-hidden="true"><use href="#i-tels"/></svg>Plusieurs téléphones</span></label>
+      <label><input type="radio" name="mode-jeu" value="un" id="mode-un"><span><svg aria-hidden="true"><use href="#i-tel"/></svg>Un seul téléphone</span></label>
+    </div>
+    <button class="btn btn-action multi-seulement" id="btn-creer" type="button">Créer une partie</button>
+    <button class="btn btn-carte multi-seulement" id="btn-rejoindre" type="button">Rejoindre</button>
+    <button class="btn btn-action local-seulement" id="btn-local-commencer" type="button">Commencer une partie</button>
     <button class="btn btn-lien" id="btn-regles" type="button">Règles du jeu</button>
-    <p class="mention-bas">En équipes, chacun sur son téléphone · de 4 à 16 joueurs</p>
+    <p class="mention-bas multi-seulement">En équipes, chacun sur son téléphone · de 4 à 16 joueurs</p>
+    <p class="mention-bas local-seulement">En équipes, un téléphone qui passe de main en main · de 4 à 16 joueurs</p>
   </div>
 </section>
 
@@ -1153,7 +1241,8 @@ body > .bandeau.visible{pointer-events:auto}
   </div>
   <div class="plateau regle">
     <h3><span class="n">1</span>Les équipes</h3>
-    <p>De 2 à 4 équipes, au moins 2 joueurs chacune, 16 joueurs au plus. Chacun rejoint la partie avec le code de l'hôte.</p>
+    <p class="multi-seulement">De 2 à 4 équipes, au moins 2 joueurs chacune, 16 joueurs au plus. Chacun rejoint la partie avec le code de l'hôte.</p>
+    <p class="local-seulement">De 2 à 4 équipes, au moins 2 joueurs chacune, 16 joueurs au plus. Un seul téléphone passe de main en main : il va toujours à qui fait deviner.</p>
   </div>
   <div class="plateau regle">
     <h3><span class="n">2</span>Trois manches, les mêmes cartes</h3>
@@ -1167,8 +1256,10 @@ body > .bandeau.visible{pointer-events:auto}
     <h3><span class="n">3</span>Un tour</h3>
     <ul class="roles-regle">
       <li><svg><use href="#i-bulle"/></svg><span><strong>Qui fait deviner</strong> voit la carte et touche «&nbsp;Trouvé&nbsp;» ou «&nbsp;Passer&nbsp;». «&nbsp;Annuler&nbsp;» corrige un pouce trop rapide.</span></li>
-      <li><svg><use href="#i-oreille"/></svg><span><strong>Son équipe</strong> ne voit que le chrono, et devine à voix haute.</span></li>
-      <li><svg><use href="#i-oeil"/></svg><span><strong>Les adversaires</strong> voient la carte et surveillent.</span></li>
+      <li class="multi-seulement"><svg><use href="#i-oreille"/></svg><span><strong>Son équipe</strong> ne voit que le chrono, et devine à voix haute.</span></li>
+      <li class="multi-seulement"><svg><use href="#i-oeil"/></svg><span><strong>Les adversaires</strong> voient la carte et surveillent.</span></li>
+      <li class="local-seulement"><svg><use href="#i-oreille"/></svg><span><strong>Son équipe</strong> ne regarde pas l'écran, et devine à voix haute.</span></li>
+      <li class="local-seulement"><svg><use href="#i-oeil"/></svg><span><strong>Les adversaires</strong> peuvent surveiller par-dessus son épaule.</span></li>
     </ul>
   </div>
   <div class="plateau regle">
@@ -1203,6 +1294,131 @@ body > .bandeau.visible{pointer-events:auto}
     <h2>Connexion perdue</h2>
     <p>Vérifiez le Wi-Fi ou les données mobiles. Nous essayons de vous reconnecter ; la partie vous attend.</p>
     <button class="btn btn-action" id="btn-reessayer" type="button">Réessayer</button>
+  </div>
+</section>
+
+<!-- ============================================================ U1. LES ÉQUIPES -->
+<section class="ecran" id="ecran-local-equipes" aria-labelledby="titre-local-equipes">
+  <div class="barre">
+    <button class="btn-rond" id="btn-local-retour" type="button" aria-label="Retour à l'accueil"><svg><use href="#i-retour"/></svg></button>
+    <span class="titre-barre titre-mode"><svg aria-hidden="true"><use href="#i-tel"/></svg> Un seul téléphone</span>
+  </div>
+  <div>
+    <h2 class="h-ecran" id="titre-local-equipes">Les équipes</h2>
+    <p class="sous">Les prénoms sont facultatifs : ils servent à savoir à qui passer le téléphone.</p>
+  </div>
+
+  <div class="plateau">
+    <div class="reglage">
+      <div class="lib"><span class="lib-reglage" id="lib-local-equipes">Équipes</span><small>De 2 à 4</small></div>
+      <div class="pas" id="local-reglage-equipes" role="group" aria-labelledby="lib-local-equipes">
+        <button type="button" id="local-equipes-moins" aria-label="Une équipe de moins" disabled>−</button>
+        <span class="valeur" id="local-equipes-valeur" aria-live="polite">2</span>
+        <button type="button" id="local-equipes-plus" aria-label="Une équipe de plus">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="equipes-locales" id="local-equipes">
+    <div class="equipe-locale" data-equipe="e1" style="--e:var(--e1)">
+      <div class="equipe-tete"><strong data-role="nom-equipe">Équipe 1</strong><span class="nb" data-role="nb">3 joueurs</span></div>
+      <div class="corps">
+        <div class="ligne-nb">
+          <span class="lib-reglage" id="lib-local-nb-e1">Joueurs</span>
+          <div class="pas" role="group" aria-labelledby="lib-local-nb-e1">
+            <button type="button" aria-label="Un joueur de moins dans l'Équipe 1">−</button>
+            <span class="valeur" aria-live="polite">3</span>
+            <button type="button" aria-label="Un joueur de plus dans l'Équipe 1">+</button>
+          </div>
+        </div>
+        <ul class="liste-saisie" data-role="prenoms">
+          <li><input class="saisie" type="text" maxlength="16" autocomplete="off" aria-label="Équipe 1, prénom du joueur 1 (facultatif)" placeholder="Prénom (facultatif)" value="Sarah"></li>
+          <li><input class="saisie" type="text" maxlength="16" autocomplete="off" aria-label="Équipe 1, prénom du joueur 2 (facultatif)" placeholder="Prénom (facultatif)" value="Maëlle"></li>
+          <li><input class="saisie" type="text" maxlength="16" autocomplete="off" aria-label="Équipe 1, prénom du joueur 3 (facultatif)" placeholder="Prénom (facultatif)" value=""></li>
+        </ul>
+      </div>
+    </div>
+    <div class="equipe-locale" data-equipe="e2" style="--e:var(--e2)">
+      <div class="equipe-tete"><strong data-role="nom-equipe">Équipe 2</strong><span class="nb" data-role="nb">2 joueurs</span></div>
+      <div class="corps">
+        <div class="ligne-nb">
+          <span class="lib-reglage" id="lib-local-nb-e2">Joueurs</span>
+          <div class="pas" role="group" aria-labelledby="lib-local-nb-e2">
+            <button type="button" aria-label="Un joueur de moins dans l'Équipe 2" disabled>−</button>
+            <span class="valeur" aria-live="polite">2</span>
+            <button type="button" aria-label="Un joueur de plus dans l'Équipe 2">+</button>
+          </div>
+        </div>
+        <ul class="liste-saisie" data-role="prenoms">
+          <li><input class="saisie" type="text" maxlength="16" autocomplete="off" aria-label="Équipe 2, prénom du joueur 1 (facultatif)" placeholder="Prénom (facultatif)" value="Gabriel"></li>
+          <li><input class="saisie" type="text" maxlength="16" autocomplete="off" aria-label="Équipe 2, prénom du joueur 2 (facultatif)" placeholder="Prénom (facultatif)" value="Inès"></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="plateau" id="local-reglages">
+    <div class="tete-liste"><h2>Réglages</h2></div>
+    <div class="reglage-col">
+      <span class="lib-reglage" id="lib-local-duree">Durée d'un tour</span>
+      <div class="segments" id="local-reglage-duree" role="radiogroup" aria-labelledby="lib-local-duree">
+        <label><input type="radio" name="local-duree" value="30"><span>30 s</span></label>
+        <label><input type="radio" name="local-duree" value="45" checked><span>45 s</span></label>
+        <label><input type="radio" name="local-duree" value="60"><span>60 s</span></label>
+      </div>
+    </div>
+    <div class="reglage-col">
+      <span class="lib-reglage" id="lib-local-cartes">Nombre de cartes</span>
+      <small>Les mêmes cartes servent aux trois manches.</small>
+      <div class="segments" id="local-reglage-cartes" role="radiogroup" aria-labelledby="lib-local-cartes">
+        <label><input type="radio" name="local-cartes" value="20"><span>20</span></label>
+        <label><input type="radio" name="local-cartes" value="30" checked><span>30</span></label>
+        <label><input type="radio" name="local-cartes" value="40"><span>40</span></label>
+      </div>
+    </div>
+    <div class="reglage-col">
+      <span class="lib-reglage" id="lib-local-difficulte">Difficulté</span>
+      <div class="segments n4" id="local-reglage-difficulte" role="radiogroup" aria-labelledby="lib-local-difficulte">
+        <label><input type="radio" name="local-difficulte" value="toutes" checked><span>Toutes</span></label>
+        <label><input type="radio" name="local-difficulte" value="facile"><span>Facile</span></label>
+        <label><input type="radio" name="local-difficulte" value="moyen"><span>Moyen</span></label>
+        <label><input type="radio" name="local-difficulte" value="difficile"><span>Difficile</span></label>
+      </div>
+    </div>
+  </div>
+
+  <div class="bas">
+    <p class="raison" id="raison-local" data-role="raison-local"></p>
+    <button class="btn btn-action" id="btn-local-lancer" type="button">Lancer la partie</button>
+  </div>
+</section>
+
+<!-- ============================================================ U2. PASSEZ LE TÉLÉPHONE -->
+<section class="ecran" id="ecran-local-passe" aria-labelledby="titre-local-passe">
+  <div class="barre">
+    <span class="puce"><svg><use href="#i-bulle"/></svg><span data-role="manche-courte">Manche 1</span></span>
+    <div class="droite"><span class="puce puce-equipe" style="--e:var(--e2)" data-role="equipe-du-tour">Équipe 2</span></div>
+  </div>
+  <div class="passe">
+    <p class="vers" id="titre-local-passe"><span class="t-avec-prenom">Passez le téléphone à</span><span class="t-sans-prenom">Passez le téléphone à quelqu'un de</span></p>
+    <span class="pastille grande t-avec-prenom" style="--j:var(--j4)" data-role="pastille-parleur">G</span>
+    <p class="prenom-geant"><span class="t-avec-prenom" data-role="nom-parleur">Gabriel</span><span class="t-sans-prenom">l'<span data-role="nom-equipe">Équipe 2</span></span></p>
+    <p class="sous t-sans-prenom">Pas la même personne qu'au dernier tour de l'équipe.</p>
+  </div>
+  <div class="consigne-secret">
+    <svg aria-hidden="true"><use href="#i-oeil"/></svg>
+    <p><strong>L'<span data-role="nom-equipe">Équipe 2</span> ne regarde pas l'écran</strong>Seule la personne qui fait deviner voit la carte. Les adversaires peuvent surveiller par-dessus son épaule.</p>
+  </div>
+  <div class="bas">
+    <button class="btn btn-action masque-si-arret" id="btn-cest-moi" type="button">C'est moi : je fais deviner</button>
+    <button class="btn btn-lien btn-arreter masque-si-arret" type="button">Arrêter la partie</button>
+    <div class="confirmer-arret" role="group" aria-label="Arrêter la partie ?">
+      <p><strong>Arrêter la partie ?</strong>La partie en cours sera perdue.</p>
+      <div class="deux-boutons">
+        <button class="btn btn-second btn-arret-oui" type="button">Arrêter</button>
+        <button class="btn btn-action btn-arret-non" type="button">Continuer</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -1761,7 +1977,7 @@ body > .bandeau.visible{pointer-events:auto}
     const b = e.target.closest('.btn, .btn-rond, .pas button, .btn-go');
     if (b && !b.disabled && !SONS_PROPRES.includes(b.id)) jouer('clic');
   });
-  function vibrer(m) { try { if (navigator.vibrate) navigator.vibrate(m); } catch (e) { } }
+  function vibrer(m) { try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; if (navigator.vibrate) navigator.vibrate(m); } catch (e) { } }
 
   /* ---------------- Écrans ---------------- */
   let ecranActuel = null;
@@ -1848,7 +2064,128 @@ body > .bandeau.visible{pointer-events:auto}
   }
   function fermerSession() { if (session) { try { session.quitter(); } catch (e) { } } session = null; vue = null; prec = null; }
   function agir(m) { if (session) session.agir(m); }
-  function quitter() { fermerSession(); window.Reseau.oublier(); $('#bandeau-connexion').classList.remove('visible'); montrer('accueil'); }
+  function quitter() { fermerSession(); window.Reseau.oublier(); $('#bandeau-connexion').classList.remove('visible'); choisirMode('plusieurs'); montrer('accueil'); }
+
+  /* ---------------- Mode « un seul téléphone » : aucune connexion, l'état vit ici ---------------- */
+  function estLocal() { return document.body.classList.contains('un-telephone'); }
+  function choisirMode(m) {
+    $('#mode-un').checked = m === 'un'; $('#mode-plusieurs').checked = m !== 'un';
+    document.body.classList.toggle('un-telephone', m === 'un');
+  }
+  /* Même interface qu'une session réseau (agir, quitter) ; le téléphone pilote toujours au nom du parleur. */
+  function SessionLocale(opts) {
+    const L = window.Logique;
+    const etat = L.nouvelEtat();
+    const sansPrenom = new Set();
+    L.regler(etat, Object.assign({}, opts.reglages, { nbEquipes: opts.equipes.length, repartition: 'choix' }));
+    opts.equipes.forEach((noms, i) => noms.forEach((nom, k) => {
+      const cle = 'l' + (i + 1) + '-' + (k + 1);
+      if (!nom) sansPrenom.add(cle);
+      L.ajouterJoueur(etat, cle, nom || 'Joueur');
+      L.choisirEquipe(etat, cle, 'e' + (i + 1));
+    }));
+    function diffuser() {
+      const t = Date.now();
+      const v = L.vueDe(etat, etat.tour ? etat.tour.parleur : etat.joueurs[0].cle, t);
+      v.local = true; v.decalage = 0;
+      v.moi.hote = true;
+      v.joueurs.forEach(j => { j.sansPrenom = sansPrenom.has(j.cle); });
+      afficher(v);
+    }
+    const minuteur = setInterval(() => { if (L.tic(etat, Date.now())) diffuser(); }, 200);
+    this.agir = m => {
+      const t = Date.now(), p = etat.tour && etat.tour.parleur;
+      switch (m.a) {
+        case 'go': L.go(etat, p, t); break;
+        case 'trouve': L.trouve(etat, p, t); break;
+        case 'passer': L.passer(etat, p); break;
+        case 'annuler': L.annuler(etat, p); break;
+        case 'suite': L.suite(etat); break;
+        case 'rejouer': L.rejouer(etat); L.lancer(etat, window.CARTES); break;
+        default: return;
+      }
+      diffuser();
+    };
+    this.quitter = () => clearInterval(minuteur);
+    L.lancer(etat, window.CARTES);
+    diffuser();
+  }
+
+  $$('input[name="mode-jeu"]').forEach(r => r.addEventListener('change', () => choisirMode($('#mode-un').checked ? 'un' : 'plusieurs')));
+
+  /* U1 : les équipes (2 à 4), 2 à 8 joueurs chacune, 16 au plus, prénoms facultatifs */
+  const local = { nb: 2, equipes: [['', ''], ['', ''], ['', ''], ['', '']] };
+  function totalLocal() { return local.equipes.slice(0, local.nb).reduce((s, e) => s + e.length, 0); }
+  function majLancerLocal() {
+    const n = totalLocal();
+    $('#btn-local-lancer').disabled = n > Logique.MAX_JOUEURS;
+    texte('#raison-local', n > Logique.MAX_JOUEURS ? n + ' joueurs : ' + Logique.MAX_JOUEURS + ' au plus.' : '');
+  }
+  function rendreLocalEquipes() {
+    texte('#local-equipes-valeur', String(local.nb));
+    $('#local-equipes-moins').disabled = local.nb <= 2; $('#local-equipes-plus').disabled = local.nb >= 4;
+    const box = $('#local-equipes'); box.innerHTML = '';
+    for (let i = 0; i < local.nb; i++) {
+      const id = 'e' + (i + 1), nom = 'Équipe ' + (i + 1), noms = local.equipes[i];
+      const d = document.createElement('div');
+      d.className = 'equipe-locale'; d.dataset.equipe = id; couleurEquipe(d, id);
+      d.innerHTML = '<div class="equipe-tete"><strong data-role="nom-equipe"></strong><span class="nb" data-role="nb"></span></div>' +
+        '<div class="corps"><div class="ligne-nb"><span class="lib-reglage" id="lib-local-nb-' + id + '">Joueurs</span>' +
+        '<div class="pas" role="group" aria-labelledby="lib-local-nb-' + id + '"><button type="button" aria-label="Un joueur de moins dans l\'' + nom + '">−</button><span class="valeur" aria-live="polite"></span><button type="button" aria-label="Un joueur de plus dans l\'' + nom + '">+</button></div></div>' +
+        '<ul class="liste-saisie" data-role="prenoms"></ul></div>';
+      texte('[data-role="nom-equipe"]', nom, d);
+      texte('[data-role="nb"]', pluriel(noms.length, 'joueur'), d);
+      texte('.valeur', String(noms.length), d);
+      const [moins, plus] = d.querySelectorAll('.pas button');
+      moins.disabled = noms.length <= 2; plus.disabled = noms.length >= 8;
+      moins.addEventListener('click', () => { if (noms.length > 2) { noms.pop(); rendreLocalEquipes(); } });
+      plus.addEventListener('click', () => { if (noms.length < 8) { noms.push(''); rendreLocalEquipes(); } });
+      const ul = d.querySelector('ul');
+      noms.forEach((p, k) => {
+        const li = document.createElement('li');
+        const inp = document.createElement('input');
+        inp.className = 'saisie'; inp.type = 'text'; inp.maxLength = 16; inp.autocomplete = 'off';
+        inp.placeholder = 'Prénom (facultatif)'; inp.setAttribute('aria-label', nom + ', prénom du joueur ' + (k + 1) + ' (facultatif)');
+        inp.value = p;
+        inp.addEventListener('input', () => { noms[k] = inp.value; });
+        li.append(inp); ul.append(li);
+      });
+      box.append(d);
+    }
+    majLancerLocal();
+  }
+  $('#btn-local-commencer').addEventListener('click', () => { rendreLocalEquipes(); montrer('local-equipes'); });
+  $('#btn-local-retour').addEventListener('click', () => montrer('accueil'));
+  $('#local-equipes-moins').addEventListener('click', () => { if (local.nb > 2) { local.nb--; rendreLocalEquipes(); } });
+  $('#local-equipes-plus').addEventListener('click', () => { if (local.nb < 4) { local.nb++; rendreLocalEquipes(); } });
+  $('#btn-local-lancer').addEventListener('click', () => {
+    if (totalLocal() > Logique.MAX_JOUEURS) return;
+    const val = n => { const r = $('input[name="' + n + '"]:checked'); return r ? r.value : undefined; };
+    fermerSession();
+    session = new SessionLocale({
+      equipes: local.equipes.slice(0, local.nb).map(e => e.map(p => p.trim())),
+      reglages: { duree: val('local-duree'), nbCartes: val('local-cartes'), difficulte: val('local-difficulte') }
+    });
+  });
+
+  /* U2 : passez le téléphone. Aucune carte ici : elle n'apparaît qu'au Go. */
+  let passeConfirme = false;
+  $('#btn-cest-moi').addEventListener('click', () => { if (!vue || vue.phase !== 'pret') return; passeConfirme = true; afficher(vue, true); });
+  /* Arrêter la partie (U2) : confirmation dans l'écran, puis accueil en mode Plusieurs, état et chrono vidés. */
+  const ecranPasse = $('#ecran-local-passe');
+  $('.btn-arreter', ecranPasse).addEventListener('click', () => ecranPasse.classList.add('arret-demande'));
+  $('.btn-arret-non', ecranPasse).addEventListener('click', () => ecranPasse.classList.remove('arret-demande'));
+  $('.btn-arret-oui', ecranPasse).addEventListener('click', () => { ecranPasse.classList.remove('arret-demande'); quitter(); });
+  function rendrePasse() {
+    const s = $('#ecran-local-passe'), t = vue.tour, j = joueurDe(t.parleur);
+    if (ecranActuel !== 'ecran-local-passe') s.classList.remove('arret-demande');
+    s.classList.toggle('sans-prenom', !j || j.sansPrenom);
+    textes('[data-role="manche-courte"]', 'Manche ' + vue.manche + ' · ' + COURT_MANCHES[vue.manche], s);
+    s.querySelectorAll('[data-role="equipe-du-tour"]').forEach(el => { el.textContent = nomEquipe(t.equipe); couleurEquipe(el, t.equipe); });
+    textes('[data-role="nom-equipe"]', nomEquipe(t.equipe), s);
+    texte('[data-role="nom-parleur"]', j && !j.sansPrenom ? j.prenom : '', s);
+    pastille($('[data-role="pastille-parleur"]', s), j);
+  }
 
   function montrerErreur(code) {
     $('#btn-entrer').disabled = false;
@@ -2119,7 +2456,8 @@ body > .bandeau.visible{pointer-events:auto}
     texte('#titre-fin-tour', vide ? 'Paquet vide !' : 'Temps écoulé !');
     const p = $('[data-role="equipe-du-tour"]', s); texte(p, nomEquipe(d.equipe)); couleurEquipe(p, d.equipe);
     texte('[data-role="points-tour"]', '+' + d.mots.length, s);
-    const nom = (joueurDe(d.parleur) || {}).prenom || '';
+    const jp = joueurDe(d.parleur) || {};
+    const nom = jp.sansPrenom ? 'L\'' + nomEquipe(d.equipe) : (jp.prenom || '');
     $('.points-tour .sous', s).innerHTML = '';
     const sp = document.createElement('span'); sp.dataset.role = 'nom-parleur'; sp.textContent = nom;
     $('.points-tour .sous', s).append(sp, document.createTextNode(d.mots.length ? ' a fait trouver ' + pluriel(d.mots.length, 'carte') : ' n\'a pas fait trouver de carte'));
@@ -2129,7 +2467,8 @@ body > .bandeau.visible{pointer-events:auto}
     if (vue.prochain) {
       const j = joueurDe(vue.prochain.parleur);
       pastille($('#prochain .pastille'), j);
-      texte('[data-role="prochain-parleur"]', j ? j.prenom : '', s);
+      $('#prochain .pastille').hidden = !!(j && j.sansPrenom);
+      texte('[data-role="prochain-parleur"]', j ? (j.sansPrenom ? 'quelqu\'un' : j.prenom) : '', s);
       texte('[data-role="prochaine-equipe"]', nomEquipe(vue.prochain.equipe), s);
     }
     $('#prochain').hidden = !vue.prochain;
@@ -2207,13 +2546,14 @@ body > .bandeau.visible{pointer-events:auto}
   }
 
   /* ---------------- Aiguillage ---------------- */
-  function afficher(v) {
-    prec = vue; vue = v;
+  function afficher(v, memeVue) {
+    if (!memeVue) { prec = vue; vue = v; }
     if (!v.moi) return;
     decalage = v.decalage || 0;
     $('#btn-entrer').disabled = false;
-    if (prec && prec.phase !== 'salle' && v.phase !== 'salle' && prec.moi && !prec.joueurs.some(j => j.cle === v.moi.cle)) { /* rien */ }
-    if (!prec && v.phase !== 'salle' && v.moi.equipe) {
+    if (v.local && v.phase === 'pret' && !memeVue && (!prec || prec.phase !== 'pret')) passeConfirme = false;
+    if (v.local && v.phase === 'pret' && !passeConfirme) { rendrePasse(); montrer('local-passe'); return; }
+    if (!v.local && !prec && v.phase !== 'salle' && v.moi.equipe) {
       const toast = $('#toast-retard'); texte('[data-role="equipe-attribuee"]', nomEquipe(v.moi.equipe), toast);
       toast.classList.add('visible'); setTimeout(() => toast.classList.remove('visible'), 4000);
     }
@@ -2234,6 +2574,7 @@ body > .bandeau.visible{pointer-events:auto}
   document.body.append($('#bandeau-connexion'));
   document.body.append($('#toast-retard'));
   $$('.ecran').forEach(s => { s.hidden = true; });
+  choisirMode('plusieurs'); /* jamais mémorisé : l'accueil s'ouvre toujours sur « Plusieurs téléphones » */
   const enCoursSession = window.Reseau.sessionEnCours();
   const codeUrl = (location.hash.match(/^#([A-Za-z]{4})$/) || [])[1];
   if (enCoursSession) { montrer('accueil'); reprendre(enCoursSession); }
